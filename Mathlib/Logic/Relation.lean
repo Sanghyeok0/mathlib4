@@ -46,6 +46,15 @@ the bundled version, see `Rel`.
   related by `r`.
 * `Relation.Join`: Join of a relation. For `r : α → α → Prop`, `Join r a b ↔ ∃ c, r a c ∧ r b c`. In
   terms of rewriting systems, this means that `a` and `b` can be rewritten to the same term.
+* `Relation.Diamond`: The diamond property. For `r : α → α → Prop`, `Diamond r` means that
+  whenever `r a b` and `r a c`, then `Join r b c`.
+* `Relation.Confluent`: Confluence. For `r : α → α → Prop`, `Confluent r` means that
+  `Diamond (ReflTransGen r)`.
+* `Relation.ChurchRosser`: The Church-Rosser property. For `r : α → α → Prop`,
+  `ChurchRosser r` means that whenever `EqvGen r a b`, then `Join (ReflTransGen r) a b`.
+* `Relation.StronglyConfluent`: Strong confluence. For `r : α → α → Prop`,
+  `StronglyConfluent r` means that whenever `r a b` and `r a c`, there is a `d`
+  such that `ReflGen r b d` and `ReflTransGen r c d`.
 -/
 
 @[expose] public section
@@ -801,14 +810,57 @@ theorem mono {r p : α → α → Prop} (hrp : ∀ a b, r a b → p a b) (h : Eq
 
 end EqvGen
 
+namespace ReflTransGen
+
+/-- A reflexive-transitive chain induces a relation in the equivalence closure. -/
+theorem to_eqvGen {r : α → α → Prop} {a b : α} (h : ReflTransGen r a b) :
+    EqvGen r a b := by
+  induction h with
+  | refl => exact EqvGen.refl _
+  | tail _ hbc ih => exact EqvGen.trans _ _ _ ih (EqvGen.rel _ _ hbc)
+
+end ReflTransGen
+
 /-- The join of a relation on a single type is a new relation for which
 pairs of terms are related if there is a third term they are both
 related to.  For example, if `r` is a relation representing rewrites
-in a term rewriting system, then *confluence* is the property that if
-`a` rewrites to both `b` and `c`, then `join r` relates `b` and `c`
-(see `Relation.church_rosser`).
+in a term rewriting system, then `Diamond r` says that if `r a b` and `r a c`,
+then `Join r b c`; confluence is `Diamond (ReflTransGen r)`.
 -/
 def Join (r : α → α → Prop) : α → α → Prop := fun a b ↦ ∃ c, r a c ∧ r b c
+
+/-- The diamond property. This means that if `r a b` and `r a c`, then `Join r b c`. -/
+def Diamond (r : α → α → Prop) : Prop :=
+  ∀ {a b c : α}, r a b → r a c → Join r b c
+
+/-- Confluence. This means that if `ReflTransGen r a b` and `ReflTransGen r a c`, then
+`Join (ReflTransGen r) b c`. -/
+def Confluent (r : α → α → Prop) : Prop :=
+  Diamond (ReflTransGen r)
+
+/-- The Church-Rosser property. This means that if `EqvGen r a b`, then
+`Join (ReflTransGen r) a b`. -/
+def ChurchRosser (r : α → α → Prop) : Prop :=
+  ∀ {a b : α},
+    EqvGen r a b →
+    Join (ReflTransGen r) a b
+
+/-- Strong confluence. This means that if `r a b` and `r a c`, then there is a `d`
+such that `ReflGen r b d` and `ReflTransGen r c d`. -/
+def StronglyConfluent (r : α → α → Prop) : Prop :=
+  ∀ {a b c : α}, r a b → r a c → ∃ d, ReflGen r b d ∧ ReflTransGen r c d
+
+namespace Join
+
+/-- Joinability by reflexive-transitive chains induces a relation in the equivalence closure. -/
+theorem to_eqvGen {r : α → α → Prop} {a b : α} (h : Join (ReflTransGen r) a b) :
+    EqvGen r a b := by
+  rcases h with ⟨c, hac, hbc⟩
+  exact EqvGen.trans _ _ _
+    hac.to_eqvGen
+    (EqvGen.symm _ _ hbc.to_eqvGen)
+
+end Join
 
 section Join
 
@@ -837,6 +889,10 @@ theorem church_rosser (h : ∀ a b c, r a b → r a c → ∃ d, ReflGen r b d �
     | refl => exact ⟨b, hea, hcb⟩
     | single hba => exact ⟨a, hea, hcb.tail hba⟩
 
+/-- Strong confluence implies confluence. -/
+theorem StronglyConfluent.confluent (h : StronglyConfluent r) : Confluent r := by
+  intro a b c hab hac
+  exact church_rosser (fun _ _ _ hab hac => h hab hac) hab hac
 
 theorem join_of_single [Std.Refl r] (hab : r a b) : Join r a b :=
   ⟨b, hab, refl b⟩
@@ -848,6 +904,39 @@ instance reflexive_join [Std.Refl r] : Std.Refl (Join r) where
 
 instance : Std.Symm (Join r) where
   symm := symmetric_join
+
+/-- The Church-Rosser property implies confluence. -/
+theorem ChurchRosser.confluent (h : ChurchRosser r) : Confluent r := by
+  intro a b c hab hac
+  apply h
+  exact EqvGen.trans _ _ _
+    (EqvGen.symm _ _ hab.to_eqvGen)
+    hac.to_eqvGen
+
+/-- A confluent relation has the Church-Rosser property. -/
+theorem Confluent.churchRosser (h : Confluent r) : ChurchRosser r := by
+  intro a b hab
+  induction hab with
+  | rel a b hab =>
+      exact ⟨b, ReflTransGen.single hab, ReflTransGen.refl⟩
+  | refl a =>
+      exact ⟨a, ReflTransGen.refl, ReflTransGen.refl⟩
+  | symm a b _ ih =>
+      exact symmetric_join ih
+  | trans a b c _ _ hab hbc =>
+      rcases hab with ⟨u, hau, hbu⟩
+      rcases hbc with ⟨v, hbv, hcv⟩
+      rcases h hbu hbv with ⟨w, huw, hvw⟩
+      exact ⟨w, hau.trans huw, hcv.trans hvw⟩
+
+/-- Strong confluence implies the Church-Rosser property. -/
+theorem StronglyConfluent.churchRosser (h : StronglyConfluent r) : ChurchRosser r := by
+  apply Confluent.churchRosser
+  exact h.confluent
+
+/-- Confluence is equivalent to the Church-Rosser property. -/
+theorem confluent_iff_churchRosser : Confluent r ↔ ChurchRosser r :=
+  ⟨Confluent.churchRosser, ChurchRosser.confluent⟩
 
 theorem isTrans_join [IsTrans α r] (h : ∀ a b c, r a b → r a c → Join r b c) :
     IsTrans α (Join r) :=
