@@ -6,6 +6,7 @@ Authors: Sanghyeok Park
 module
 
 public import Mathlib.Logic.Relation
+public import Mathlib.Tactic.ScopedNS
 
 /-!
 # Normal forms for relations
@@ -23,6 +24,24 @@ The main results are:
 -/
 
 @[expose] public section
+
+namespace Reduction
+end Reduction
+
+scoped[Reduction] notation:50 a:51 " ⟶[" r "] " b:51 =>
+  r a b
+
+scoped[Reduction] notation:50 a:51 " ⟶*[" r "] " b:51 =>
+  Relation.ReflTransGen r a b
+
+scoped[Reduction] notation:50 a:51 " ⟷[" r "] " b:51 =>
+  Relation.SymmGen r a b
+
+scoped[Reduction] notation:50 a:51 " ⟷*[" r "] " b:51 =>
+  Relation.EqvGen r a b
+
+scoped[Reduction] notation:50 a:51 " ↓[" r "] " b:51 =>
+  Relation.Join (Relation.ReflTransGen r) a b
 
 namespace Relation
 
