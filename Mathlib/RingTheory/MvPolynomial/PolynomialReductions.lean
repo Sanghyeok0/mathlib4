@@ -192,6 +192,10 @@ def Reducible (p f : MvPolynomial σ R) : Prop :=
 def ReducibleSet (P : Set (MvPolynomial σ R)) (f : MvPolynomial σ R) : Prop :=
   ∃ g, m.ReducesToSet P f g
 
+/-- One-step reduction of the leading term of `f` modulo a single polynomial `p`. -/
+def LTermReducesToPoly (p f g : MvPolynomial σ R) : Prop :=
+  m.ReducesToBy p f g (m.degree f)
+
 /--
 One-step reduction modulo a set `P`.
 
