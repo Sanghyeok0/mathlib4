@@ -86,7 +86,8 @@ theorem Confluent.locallyConfluent (hc : Confluent r) : LocallyConfluent r := by
   exact hc (ReflTransGen.single hab) (ReflTransGen.single hac)
 
 /-- Confluence implies local confluence. -/
-alias locallyConfluent_of_confluent := Confluent.locallyConfluent
+theorem locallyConfluent_of_confluent (hc : Confluent r) : LocallyConfluent r :=
+  Confluent.locallyConfluent hc
 
 /-- The Church-Rosser property implies local confluence. -/
 theorem ChurchRosser.locallyConfluent (hcr : ChurchRosser r) : LocallyConfluent r :=
@@ -127,7 +128,8 @@ theorem Confluent.uniqueNormalForms (hc : Confluent r) : UniqueNormalForms r := 
   exact hdb.symm.trans hdc
 
 /-- Confluence implies unique normal forms. -/
-alias uniqueNormalForms_of_confluent := Confluent.uniqueNormalForms
+theorem uniqueNormalForms_of_confluent (hc : Confluent r) : UniqueNormalForms r :=
+  Confluent.uniqueNormalForms hc
 
 /-- Under well-foundedness of `flip r`, unique normal forms imply confluence. -/
 theorem confluent_of_wellFounded_flip_of_uniqueNormalForms
